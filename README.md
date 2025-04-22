@@ -1,50 +1,61 @@
-# Welcome to your Expo app 👋
+# Page One - Screenwriter-Producer Matching App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Page One is a platform designed to connect screenwriters with producers in a simple, merit-based way. Writers can share snippets of their scripts, and producers can discover new talent without barriers. The goal is to create an open-minded, low-barrier entry platform that prioritizes great writing over trends or virality.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Writer Profiles**: Showcase your past work and genres of interest.
+- **Producer Discovery**: Browse snippets of scripts to find your next project.
+- **Confidentiality**: Writers control what producers see, with no full scripts shared until a match is made.
+- **No Rating System**: Focus on the work, not on social metrics or ratings.
+- **Simple Interface**: A minimal design to keep you focused on what matters — great scripts.
 
+## Getting Started
+
+To get a local copy up and running, follow these simple steps:
+
+### Prerequisites
+
+- **Node.js**: https://nodejs.org/
+- **Expo CLI**: `npm install -g expo-cli` (or use `npx` without installation)
+- **Git**: https://git-scm.com/
+
+### Installation
+
+1. Clone the repo:
+   ```bash
+   git clone https://github.com/your-username/page-one.git
+   ```
+2. Navigate into the project folder:
+   ```bash
+   cd page-one
+   ```
+3. Install dependencies:
    ```bash
    npm install
    ```
 
-2. Start the app
+### Running the App
 
-   ```bash
-    npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+Start the development server:
 ```bash
-npm run reset-project
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Scan the QR code with the **Expo Go** app on your phone to view the app.
 
-## Learn more
+---
 
-To learn more about developing your project with Expo, look at the following resources:
+## Roadmap
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- Crowdfunding options for writers to raise funds for projects.
+- Live pitch events where writers can present their scripts in real-time.
+- Script sales marketplace.
 
-## Join the community
+## Contributing
 
-Join our community of developers creating universal apps.
+If you'd like to contribute, please fork the repo and submit a pull request with your changes.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## License
+
+This project is licensed under the MIT License.
