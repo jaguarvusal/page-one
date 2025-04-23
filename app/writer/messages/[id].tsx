@@ -221,6 +221,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
+    paddingTop: Platform.OS === 'ios' ? 40 : 0,
   },
   headerContainer: {
     backgroundColor: '#FFFFFF',

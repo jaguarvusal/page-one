@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, Platform } from 'react-native';
+import { StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, Platform, SafeAreaView } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -152,38 +152,40 @@ export default function MessagesScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <FlatList
-        data={threads}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.threadItem}
-            onPress={() => router.push(`/writer/messages/${item.id}`)}
-          >
-            <ThemedView style={styles.threadContent}>
-              <ThemedText style={styles.threadTitle}>
-                {item.producerEmail}
-              </ThemedText>
-              <ThemedText style={styles.threadPreview}>
-                {item.lastMessage}
-              </ThemedText>
-            </ThemedView>
+    <SafeAreaView style={styles.safeArea}>
+      <ThemedView style={styles.container}>
+        <FlatList
+          data={threads}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
             <Pressable
-              style={styles.deleteButton}
-              onPress={() => handleDeleteThread(item.id)}
+              style={styles.threadItem}
+              onPress={() => router.push(`/writer/messages/${item.id}`)}
             >
-              <FontAwesome name="times" size={20} color="#FF0000" />
+              <ThemedView style={styles.threadContent}>
+                <ThemedText style={styles.threadTitle}>
+                  {item.producerEmail}
+                </ThemedText>
+                <ThemedText style={styles.threadPreview}>
+                  {item.lastMessage}
+                </ThemedText>
+              </ThemedView>
+              <Pressable
+                style={styles.deleteButton}
+                onPress={() => handleDeleteThread(item.id)}
+              >
+                <FontAwesome name="times" size={20} color="#FF0000" />
+              </Pressable>
             </Pressable>
-          </Pressable>
-        )}
-        ListEmptyComponent={
-          <ThemedView style={styles.emptyContainer}>
-            <ThemedText style={styles.emptyText}>No messages yet</ThemedText>
-          </ThemedView>
-        }
-      />
-    </ThemedView>
+          )}
+          ListEmptyComponent={
+            <ThemedView style={styles.emptyContainer}>
+              <ThemedText style={styles.emptyText}>No messages yet</ThemedText>
+            </ThemedView>
+          }
+        />
+      </ThemedView>
+    </SafeAreaView>
   );
 }
 
@@ -191,7 +193,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingTop: Platform.OS === 'ios' ? 40 : 0,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   threadItem: {
     flexDirection: 'row',
