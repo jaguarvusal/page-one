@@ -1,124 +1,385 @@
-import { useState } from 'react';
-import { StyleSheet, ScrollView, Pressable } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, TextInput, ScrollView, Pressable, Alert, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { SnippetCard } from '@/components/SnippetCard';
-import { SnippetForm } from '@/components/SnippetForm';
+import { auth, db } from '@/firebase';
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc, updateDoc } from '@firebase/firestore';
+import { FontAwesome } from '@expo/vector-icons';
 
 interface Snippet {
   id: string;
   title: string;
-  genre: string;
   synopsis: string;
+  genre: string;
+  hook: string;
+  plotSummary: string;
+  bestScene: string;
+  writerId: string;
+  createdAt: any;
 }
 
 export default function SnippetsScreen() {
-  const [snippets, setSnippets] = useState<Snippet[]>([
-    {
-      id: '1',
-      title: 'The Midnight Train',
-      genre: 'Thriller',
-      synopsis: 'A mysterious train ride that changes everything...',
-    },
-    {
-      id: '2',
-      title: 'Summer of 99',
-      genre: 'Drama',
-      synopsis: 'A coming-of-age story set in a small coastal town...',
-    },
-  ]);
-
+  const [title, setTitle] = useState('');
+  const [synopsis, setSynopsis] = useState('');
+  const [genre, setGenre] = useState('');
+  const [hook, setHook] = useState('');
+  const [plotSummary, setPlotSummary] = useState('');
+  const [bestScene, setBestScene] = useState('');
+  const [snippets, setSnippets] = useState<Snippet[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    genre: '',
-    synopsis: '',
-  });
+  const keyboardHeight = useRef(new Animated.Value(0)).current;
 
-  const handleAddSnippet = () => {
-    setIsFormVisible(true);
-    setEditingSnippet(null);
-    setFormData({ title: '', genre: '', synopsis: '' });
-  };
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      'keyboardWillShow',
+      (event) => {
+        Animated.timing(keyboardHeight, {
+          toValue: event.endCoordinates.height,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
 
-  const handleEditSnippet = (snippet: Snippet) => {
-    setIsFormVisible(true);
-    setEditingSnippet(snippet);
-    setFormData({
-      title: snippet.title,
-      genre: snippet.genre,
-      synopsis: snippet.synopsis,
-    });
-  };
+    const keyboardWillHideListener = Keyboard.addListener(
+      'keyboardWillHide',
+      () => {
+        Animated.timing(keyboardHeight, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
 
-  const handleDeleteSnippet = (id: string) => {
-    setSnippets(snippets.filter(snippet => snippet.id !== id));
-  };
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
 
-  const handleSubmit = () => {
-    if (editingSnippet) {
-      setSnippets(snippets.map(snippet =>
-        snippet.id === editingSnippet.id
-          ? { ...snippet, ...formData }
-          : snippet
-      ));
-    } else {
-      setSnippets([
-        ...snippets,
-        {
-          id: Date.now().toString(),
-          ...formData,
-        },
-      ]);
+  useEffect(() => {
+    fetchSnippets();
+  }, []);
+
+  const fetchSnippets = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const snippetsQuery = query(
+        collection(db, 'snippets'),
+        where('writerId', '==', user.uid)
+      );
+
+      const querySnapshot = await getDocs(snippetsQuery);
+      const fetchedSnippets = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Snippet[];
+
+      // Sort snippets by createdAt in memory
+      fetchedSnippets.sort((a, b) => {
+        const dateA = a.createdAt?.toDate?.() || new Date(0);
+        const dateB = b.createdAt?.toDate?.() || new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      setSnippets(fetchedSnippets);
+    } catch (error) {
+      console.error('Error fetching snippets:', error);
+      setSnippets([]);
     }
-    setIsFormVisible(false);
-    setEditingSnippet(null);
-    setFormData({ title: '', genre: '', synopsis: '' });
   };
 
-  const handleCancel = () => {
-    setIsFormVisible(false);
-    setEditingSnippet(null);
-    setFormData({ title: '', genre: '', synopsis: '' });
+  const handleEdit = (snippet: Snippet) => {
+    setEditingSnippet(snippet);
+    setTitle(snippet.title);
+    setGenre(snippet.genre);
+    setSynopsis(snippet.synopsis);
+    setHook(snippet.hook);
+    setPlotSummary(snippet.plotSummary);
+    setBestScene(snippet.bestScene);
+    setIsFormVisible(true);
+  };
+
+  const handleDelete = async (snippetId: string) => {
+    Alert.alert(
+      'Delete Snippet',
+      'Are you sure you want to delete this snippet?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'snippets', snippetId));
+              await fetchSnippets();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete snippet');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!title || !synopsis || !genre || !hook || !plotSummary || !bestScene) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+
+      if (editingSnippet) {
+        // Update existing snippet
+        await updateDoc(doc(db, 'snippets', editingSnippet.id), {
+          title,
+          synopsis,
+          genre,
+          hook,
+          plotSummary,
+          bestScene,
+        });
+      } else {
+        // Create new snippet
+        await addDoc(collection(db, 'snippets'), {
+          title,
+          synopsis,
+          genre,
+          hook,
+          plotSummary,
+          bestScene,
+          writerId: user.uid,
+          createdAt: new Date(),
+        });
+      }
+
+      // Clear form
+      setTitle('');
+      setSynopsis('');
+      setGenre('');
+      setHook('');
+      setPlotSummary('');
+      setBestScene('');
+      setEditingSnippet(null);
+      setIsFormVisible(false);
+
+      // Refresh snippets list
+      await fetchSnippets();
+
+      Alert.alert('Success', `Snippet ${editingSnippet ? 'updated' : 'created'} successfully`);
+    } catch (error) {
+      Alert.alert('Error', `Failed to ${editingSnippet ? 'update' : 'create'} snippet`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedView style={styles.header}>
-        <ThemedText style={styles.title}>Your Snippets</ThemedText>
-        <Pressable style={styles.addButton} onPress={handleAddSnippet}>
-          <ThemedText style={styles.addButtonText}>+ New Snippet</ThemedText>
-        </Pressable>
-      </ThemedView>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView 
+          style={styles.container}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={styles.scrollContent}
+        >
+          {!isFormVisible ? (
+            <ThemedView style={styles.emptyStateContainer}>
+              {snippets.length === 0 ? (
+                <>
+                  <ThemedText style={styles.emptyStateText}>
+                    You haven't created any snippets yet
+                  </ThemedText>
+                  <Pressable 
+                    style={styles.newSnippetButton}
+                    onPress={() => setIsFormVisible(true)}
+                  >
+                    <ThemedText style={styles.newSnippetButtonText}>
+                      + New Snippet
+                    </ThemedText>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <ThemedView style={styles.snippetsContainer}>
+                    {snippets.map(snippet => (
+                      <ThemedView key={snippet.id} style={styles.snippetCard}>
+                        <ThemedText style={styles.snippetTitle}>{snippet.title}</ThemedText>
+                        <ThemedText style={styles.snippetGenre}>{snippet.genre}</ThemedText>
+                        <ThemedText style={styles.snippetSynopsis}>{snippet.synopsis}</ThemedText>
+                        <ThemedView style={styles.snippetActions}>
+                          <Pressable 
+                            style={styles.actionButton}
+                            onPress={() => handleEdit(snippet)}
+                          >
+                            <FontAwesome name="edit" size={20} color="#000000" />
+                          </Pressable>
+                          <Pressable 
+                            style={styles.actionButton}
+                            onPress={() => handleDelete(snippet.id)}
+                          >
+                            <FontAwesome name="trash" size={20} color="#000000" />
+                          </Pressable>
+                        </ThemedView>
+                      </ThemedView>
+                    ))}
+                  </ThemedView>
+                  <Pressable 
+                    style={styles.newSnippetButton}
+                    onPress={() => setIsFormVisible(true)}
+                  >
+                    <ThemedText style={styles.newSnippetButtonText}>
+                      + New Snippet
+                    </ThemedText>
+                  </Pressable>
+                </>
+              )}
+            </ThemedView>
+          ) : (
+            <ThemedView style={styles.formContainer}>
+              <ThemedText style={styles.title}>
+                {editingSnippet ? 'Edit Snippet' : 'New Snippet'}
+              </ThemedText>
+              
+              <ThemedText style={styles.label}>Title</ThemedText>
+              <TextInput
+                style={styles.input}
+                value={title}
+                onChangeText={setTitle}
+                selectionColor="#000000"
+                blurOnSubmit={false}
+                returnKeyType="next"
+                keyboardType="default"
+                textContentType="none"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              
+              <ThemedText style={styles.label}>Genre</ThemedText>
+              <TextInput
+                style={styles.input}
+                value={genre}
+                onChangeText={setGenre}
+                selectionColor="#000000"
+                blurOnSubmit={false}
+                returnKeyType="next"
+                keyboardType="default"
+                textContentType="none"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              
+              <ThemedText style={styles.label}>Synopsis</ThemedText>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={synopsis}
+                onChangeText={setSynopsis}
+                multiline
+                numberOfLines={4}
+                selectionColor="#000000"
+                blurOnSubmit={false}
+                returnKeyType="next"
+                keyboardType="default"
+                textContentType="none"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              
+              <ThemedText style={styles.label}>Hook</ThemedText>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={hook}
+                onChangeText={setHook}
+                multiline
+                numberOfLines={4}
+                selectionColor="#000000"
+                blurOnSubmit={false}
+                returnKeyType="next"
+                keyboardType="default"
+                textContentType="none"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              
+              <ThemedText style={styles.label}>Plot Summary</ThemedText>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={plotSummary}
+                onChangeText={setPlotSummary}
+                multiline
+                numberOfLines={4}
+                selectionColor="#000000"
+                blurOnSubmit={false}
+                returnKeyType="next"
+                keyboardType="default"
+                textContentType="none"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              
+              <ThemedText style={styles.label}>Best Scene</ThemedText>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={bestScene}
+                onChangeText={setBestScene}
+                multiline
+                numberOfLines={4}
+                selectionColor="#000000"
+                blurOnSubmit={false}
+                returnKeyType="done"
+                keyboardType="default"
+                textContentType="none"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {isFormVisible && (
-          <SnippetForm
-            title={formData.title}
-            genre={formData.genre}
-            synopsis={formData.synopsis}
-            onTitleChange={(text) => setFormData({ ...formData, title: text })}
-            onGenreChange={(text) => setFormData({ ...formData, genre: text })}
-            onSynopsisChange={(text) => setFormData({ ...formData, synopsis: text })}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-            isEditing={!!editingSnippet}
-          />
-        )}
+              <Pressable 
+                style={styles.submitButton}
+                onPress={handleSubmit}
+                disabled={isLoading}
+              >
+                <ThemedText style={styles.submitButtonText}>
+                  {isLoading ? 'Saving...' : (editingSnippet ? 'Update Snippet' : 'Create Snippet')}
+                </ThemedText>
+              </Pressable>
 
-        {snippets.map(snippet => (
-          <SnippetCard
-            key={snippet.id}
-            title={snippet.title}
-            genre={snippet.genre}
-            synopsis={snippet.synopsis}
-            onEdit={() => handleEditSnippet(snippet)}
-            onDelete={() => handleDeleteSnippet(snippet.id)}
-          />
-        ))}
-      </ScrollView>
-    </ThemedView>
+              <Pressable 
+                style={styles.cancelButton}
+                onPress={() => {
+                  setEditingSnippet(null);
+                  setIsFormVisible(false);
+                  setTitle('');
+                  setSynopsis('');
+                  setGenre('');
+                  setHook('');
+                  setPlotSummary('');
+                  setBestScene('');
+                  Keyboard.dismiss();
+                }}
+              >
+                <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
+              </Pressable>
+            </ThemedView>
+          )}
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -127,35 +388,125 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  scrollContent: {
+    flexGrow: 1,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    padding: 20,
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    justifyContent: 'center',
   },
-  title: {
-    fontSize: 24,
+  emptyStateText: {
+    fontSize: 18,
     fontFamily: 'CourierPrime',
-    color: '#000000',
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  addButton: {
+  newSnippetButton: {
     backgroundColor: '#000000',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    padding: 16,
     borderRadius: 8,
+    alignItems: 'center',
+    width: '100%',
   },
-  addButtonText: {
+  newSnippetButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontFamily: 'CourierPrime',
   },
-  scrollView: {
-    flex: 1,
+  formContainer: {
+    padding: 20,
   },
-  scrollContent: {
+  title: {
+    fontSize: 24,
+    fontFamily: 'CourierPrime',
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontFamily: 'CourierPrime',
+    marginBottom: 8,
+    color: '#000000',
+  },
+  input: {
+    backgroundColor: '#F5F5DC',
+    borderWidth: 1,
+    borderColor: '#000000',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    fontFamily: 'CourierPrime',
+    fontSize: 16,
+    color: '#000000',
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  submitButton: {
+    backgroundColor: '#000000',
+    padding: 16,
+    borderRadius: 8,
     alignItems: 'center',
-    paddingBottom: 20,
+    marginBottom: 12,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'CourierPrime',
+  },
+  cancelButton: {
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#000000',
+  },
+  cancelButtonText: {
+    color: '#000000',
+    fontSize: 16,
+    fontFamily: 'CourierPrime',
+  },
+  snippetsContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  snippetCard: {
+    backgroundColor: '#F5F5DC',
+    borderWidth: 1,
+    borderColor: '#000000',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+  },
+  snippetTitle: {
+    fontSize: 18,
+    fontFamily: 'CourierPrime',
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  snippetGenre: {
+    fontSize: 14,
+    fontFamily: 'CourierPrime',
+    color: '#666666',
+    marginBottom: 8,
+  },
+  snippetSynopsis: {
+    fontSize: 14,
+    fontFamily: 'CourierPrime',
+    marginBottom: 16,
+  },
+  snippetActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 16,
+  },
+  actionButton: {
+    padding: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#000000',
   },
 }); 

@@ -2,6 +2,7 @@
   "expo": {
     "name": "PageOne",
     "slug": "page-one",
+    "scheme": "pageone",
     "platforms": ["ios", "android"],
     "version": "1.0.0",
     "orientation": "portrait",

@@ -1,76 +1,123 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { ProducerSnippetCard } from '@/components/ProducerSnippetCard';
 import { router } from 'expo-router';
+import { db } from '@/firebase';
+import { collection, getDocs, query, where, updateDoc, doc } from 'firebase/firestore';
 
 interface Snippet {
   id: string;
   title: string;
   genre: string;
   synopsis: string;
+  writerId: string;
+  status: 'available' | 'burned' | 'shortlisted' | 'greenlit';
 }
 
 export default function ExploreScreen() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [snippets] = useState<Snippet[]>([
-    {
-      id: '1',
-      title: 'The Midnight Train',
-      genre: 'Thriller',
-      synopsis: 'A mysterious train ride that changes everything. When a group of strangers find themselves on a train with no memory of how they got there, they must work together to uncover the truth before their time runs out.',
-    },
-    {
-      id: '2',
-      title: 'Summer of 99',
-      genre: 'Drama',
-      synopsis: 'A coming-of-age story set in a small coastal town. As the last summer of the millennium approaches, a group of teenagers discover love, loss, and the meaning of friendship.',
-    },
-    {
-      id: '3',
-      title: 'Echoes in the Dark',
-      genre: 'Horror',
-      synopsis: 'A paranormal investigator is called to a remote mansion where the walls seem to whisper secrets. As she delves deeper, she realizes the house is alive, and it wants her to stay forever.',
-    },
-  ]);
+  const [snippets, setSnippets] = useState<Snippet[]>([]);
+  const [currentSnippet, setCurrentSnippet] = useState<Snippet | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleAction = () => {
-    if (currentIndex < snippets.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      // Handle end of snippets
-      setCurrentIndex(0);
+  useEffect(() => {
+    fetchAvailableSnippets();
+  }, []);
+
+  const fetchAvailableSnippets = async () => {
+    try {
+      const snippetsQuery = query(
+        collection(db, 'snippets'),
+        where('status', '==', 'available')
+      );
+      const querySnapshot = await getDocs(snippetsQuery);
+      const availableSnippets = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Snippet[];
+      
+      setSnippets(availableSnippets);
+      if (availableSnippets.length > 0) {
+        setCurrentSnippet(availableSnippets[Math.floor(Math.random() * availableSnippets.length)]);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to fetch snippets. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleBurn = () => {
-    console.log('Burning snippet:', snippets[currentIndex].id);
-    handleAction();
+  const getRandomSnippet = () => {
+    if (snippets.length === 0) return null;
+    return snippets[Math.floor(Math.random() * snippets.length)];
   };
 
-  const handleShortlist = () => {
-    // Save to shortlist
-    const shortlistedSnippets = JSON.parse(localStorage.getItem('shortlistedSnippets') || '[]');
-    shortlistedSnippets.push(snippets[currentIndex]);
-    localStorage.setItem('shortlistedSnippets', JSON.stringify(shortlistedSnippets));
-    handleAction();
+  const handleAction = async (action: 'burn' | 'shortlist' | 'greenlight') => {
+    if (!currentSnippet) return;
+
+    try {
+      const snippetRef = doc(db, 'snippets', currentSnippet.id);
+      let newStatus: Snippet['status'] = 'available';
+
+      switch (action) {
+        case 'burn':
+          newStatus = 'burned';
+          break;
+        case 'shortlist':
+          newStatus = 'shortlisted';
+          break;
+        case 'greenlight':
+          newStatus = 'greenlit';
+          break;
+      }
+
+      await updateDoc(snippetRef, { status: newStatus });
+      
+      // Remove the current snippet from the available snippets
+      setSnippets(prev => prev.filter(s => s.id !== currentSnippet.id));
+      
+      // Get a new random snippet
+      const nextSnippet = getRandomSnippet();
+      setCurrentSnippet(nextSnippet);
+
+      if (action === 'greenlight') {
+        router.push('/producer/messages');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update snippet status. Please try again.');
+    }
   };
 
-  const handleGreenlight = () => {
-    console.log('Greenlighting snippet:', snippets[currentIndex].id);
-    router.push('/producer/messages');
-  };
+  const handleBurn = () => handleAction('burn');
+  const handleShortlist = () => handleAction('shortlist');
+  const handleGreenlight = () => handleAction('greenlight');
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <ThemedText style={styles.title}>Loading...</ThemedText>
+      </View>
+    );
+  }
+
+  if (!currentSnippet) {
+    return (
+      <View style={styles.container}>
+        <ThemedText style={styles.title}>No snippets available</ThemedText>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <ThemedText style={styles.title}>Explore Snippets</ThemedText>
       <View style={styles.cardContainer}>
         <ProducerSnippetCard
-          key={snippets[currentIndex].id}
-          title={snippets[currentIndex].title}
-          genre={snippets[currentIndex].genre}
-          synopsis={snippets[currentIndex].synopsis}
+          key={currentSnippet.id}
+          title={currentSnippet.title}
+          genre={currentSnippet.genre}
+          synopsis={currentSnippet.synopsis}
           onBurn={handleBurn}
           onShortlist={handleShortlist}
           onGreenlight={handleGreenlight}

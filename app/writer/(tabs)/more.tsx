@@ -1,8 +1,20 @@
-import { StyleSheet, ScrollView, Pressable } from 'react-native';
+import { StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { router } from 'expo-router';
+import { auth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 
 export default function MoreScreen() {
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.replace('/');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to sign out. Please try again.');
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <ThemedView style={styles.profileSection}>
@@ -37,6 +49,15 @@ export default function MoreScreen() {
           </Pressable>
         </ThemedView>
       </ThemedView>
+
+      <ThemedView style={styles.logoutSection}>
+        <Pressable 
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        >
+          <ThemedText style={styles.logoutText}>Log Out</ThemedText>
+        </Pressable>
+      </ThemedView>
     </ScrollView>
   );
 }
@@ -51,6 +72,10 @@ const styles = StyleSheet.create({
   },
   settingsSection: {
     padding: 16,
+  },
+  logoutSection: {
+    padding: 16,
+    marginBottom: 32,
   },
   sectionTitle: {
     fontSize: 20,
@@ -102,5 +127,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: 'CourierPrime',
     color: '#000000',
+  },
+  logoutButton: {
+    backgroundColor: '#FF0000',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#000000',
+  },
+  logoutText: {
+    fontSize: 16,
+    fontFamily: 'CourierPrime',
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
 }); 
