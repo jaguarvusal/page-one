@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { StyleSheet, View, Pressable, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { router } from 'expo-router';
@@ -16,49 +16,19 @@ export default function MoreScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <ThemedView style={styles.profileSection}>
-        <ThemedText style={styles.sectionTitle}>Profile</ThemedText>
-        <ThemedView style={styles.profileCard}>
-          <ThemedText style={styles.name}>Alex Producer</ThemedText>
-          <ThemedText style={styles.bio}>
-            Independent film producer with a focus on character-driven dramas and psychological thrillers. 
-            Currently seeking fresh voices and unique perspectives in screenwriting.
-          </ThemedText>
-        </ThemedView>
-      </ThemedView>
-
-      <ThemedView style={styles.settingsSection}>
-        <ThemedText style={styles.sectionTitle}>Settings</ThemedText>
-        <ThemedView style={styles.settingsList}>
-          <Pressable style={styles.settingItem}>
-            <ThemedText style={styles.settingText}>Change Password</ThemedText>
-            <ThemedText style={styles.arrow}>→</ThemedText>
-          </Pressable>
-          <Pressable style={styles.settingItem}>
-            <ThemedText style={styles.settingText}>Notification Preferences</ThemedText>
-            <ThemedText style={styles.arrow}>→</ThemedText>
-          </Pressable>
-          <Pressable style={styles.settingItem}>
-            <ThemedText style={styles.settingText}>Privacy Settings</ThemedText>
-            <ThemedText style={styles.arrow}>→</ThemedText>
-          </Pressable>
-          <Pressable style={styles.settingItem}>
-            <ThemedText style={styles.settingText}>Account Information</ThemedText>
-            <ThemedText style={styles.arrow}>→</ThemedText>
-          </Pressable>
-        </ThemedView>
-      </ThemedView>
-
-      <ThemedView style={styles.logoutSection}>
+    <ThemedView style={styles.container}>
+      <View style={styles.content}>
+        <ThemedText style={styles.email}>
+          {auth.currentUser?.email}
+        </ThemedText>
         <Pressable 
           style={styles.logoutButton}
           onPress={handleLogout}
         >
           <ThemedText style={styles.logoutText}>Log Out</ThemedText>
         </Pressable>
-      </ThemedView>
-    </ScrollView>
+      </View>
+    </ThemedView>
   );
 }
 
@@ -67,66 +37,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  profileSection: {
-    padding: 16,
-  },
-  settingsSection: {
-    padding: 16,
-  },
-  logoutSection: {
-    padding: 16,
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: 'CourierPrime',
-    color: '#000000',
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  profileCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#000000',
-  },
-  name: {
-    fontSize: 24,
-    fontFamily: 'CourierPrime',
-    color: '#000000',
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  bio: {
-    fontSize: 16,
-    fontFamily: 'CourierPrime',
-    color: '#000000',
-    lineHeight: 24,
-  },
-  settingsList: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#000000',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  content: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#000000',
   },
-  settingText: {
-    fontSize: 16,
+  email: {
+    fontSize: 18,
     fontFamily: 'CourierPrime',
     color: '#000000',
-  },
-  arrow: {
-    fontSize: 20,
-    fontFamily: 'CourierPrime',
-    color: '#000000',
+    marginBottom: 32,
   },
   logoutButton: {
     backgroundColor: '#FF0000',
@@ -135,6 +56,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#000000',
+    width: '100%',
   },
   logoutText: {
     fontSize: 16,

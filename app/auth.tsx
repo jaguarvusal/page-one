@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { StyleSheet, TextInput, Pressable, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { StyleSheet, TextInput, Pressable, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { router, useLocalSearchParams } from 'expo-router';
-import { auth } from '@/firebase';
+import { auth, db } from '@/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from '@firebase/auth';
 import { doc, setDoc, getDoc } from '@firebase/firestore';
-import { db } from '@/firebase';
 import { FontAwesome } from '@expo/vector-icons';
 
 export default function AuthScreen() {
@@ -14,7 +13,8 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSignUpLoading, setIsSignUpLoading] = useState(false);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
 
   const handleAuth = async (isSignUp: boolean) => {
     if (!email || !password) {
@@ -22,46 +22,65 @@ export default function AuthScreen() {
       return;
     }
 
-    setIsLoading(true);
+    if (isSignUp) {
+      setIsSignUpLoading(true);
+    } else {
+      setIsLoginLoading(true);
+    }
     setError('');
 
     try {
+      let userCredential;
       if (isSignUp) {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
         
         // Create user document in Firestore
-        await setDoc(doc(db, 'users', user.uid), {
-          email: user.email,
+        const userRef = doc(db, 'users', userCredential.user.uid);
+        await setDoc(userRef, {
+          email: userCredential.user.email,
           type: type,
           createdAt: new Date().toISOString(),
         });
-
-        // Redirect based on user type
-        if (type === 'writer') {
-          router.replace('/writer/(tabs)/stats');
-        } else {
-          router.replace('/producer/(tabs)/explore');
-        }
       } else {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        
-        // Get user type from Firestore
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const userType = userDoc.data()?.type;
-        
-        // Redirect based on user type
-        if (userType === 'writer') {
-          router.replace('/writer/(tabs)/stats');
-        } else {
-          router.replace('/producer/(tabs)/explore');
-        }
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
+      }
+
+      // Verify user document exists
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      
+      if (!userDoc.exists()) {
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          email: userCredential.user.email,
+          type: type,
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      const userType = userDoc.data()?.type || type;
+
+      if (userType === 'writer') {
+        router.replace('/writer/(tabs)/stats');
+      } else {
+        router.replace('/producer/(tabs)/explore');
       }
     } catch (error: any) {
-      setError(error.message);
+      if (error.code === 'auth/email-already-in-use') {
+        setError('Email already in use. Please try logging in instead.');
+      } else if (error.code === 'auth/invalid-email') {
+        setError('Invalid email address.');
+      } else if (error.code === 'auth/weak-password') {
+        setError('Password should be at least 6 characters.');
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        setError('Invalid email or password.');
+      } else {
+        setError(error.message);
+      }
     } finally {
-      setIsLoading(false);
+      if (isSignUp) {
+        setIsSignUpLoading(false);
+      } else {
+        setIsLoginLoading(false);
+      }
     }
   };
 
@@ -80,7 +99,7 @@ export default function AuthScreen() {
           </Pressable>
           
           <ThemedText style={styles.title}>
-            {type === 'writer' ? 'Writer' : 'Producer'} {isLoading ? 'Loading...' : ''}
+            {type === 'writer' ? 'Writer' : 'Producer'}
           </ThemedText>
           
           <ThemedView style={styles.formContainer}>
@@ -92,6 +111,7 @@ export default function AuthScreen() {
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
+              editable={!isSignUpLoading && !isLoginLoading}
             />
             
             <TextInput
@@ -101,24 +121,33 @@ export default function AuthScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              editable={!isSignUpLoading && !isLoginLoading}
             />
             
             {error ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
             
             <Pressable
-              style={styles.button}
+              style={[styles.button, (isSignUpLoading || isLoginLoading) && styles.disabledButton]}
               onPress={() => handleAuth(true)}
-              disabled={isLoading}
+              disabled={isSignUpLoading || isLoginLoading}
             >
-              <ThemedText style={styles.buttonText}>Sign Up</ThemedText>
+              {isSignUpLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <ThemedText style={styles.buttonText}>Sign Up</ThemedText>
+              )}
             </Pressable>
             
             <Pressable
-              style={[styles.button, styles.loginButton]}
+              style={[styles.button, styles.loginButton, (isSignUpLoading || isLoginLoading) && styles.disabledButton]}
               onPress={() => handleAuth(false)}
-              disabled={isLoading}
+              disabled={isSignUpLoading || isLoginLoading}
             >
-              <ThemedText style={styles.buttonText}>Login</ThemedText>
+              {isLoginLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <ThemedText style={styles.buttonText}>Login</ThemedText>
+              )}
             </Pressable>
           </ThemedView>
         </ThemedView>
@@ -134,68 +163,47 @@ const styles = StyleSheet.create({
   },
   innerContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
-    backgroundColor: '#FFFFFF',
   },
   backButton: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    zIndex: 1,
+    marginBottom: 20,
   },
   title: {
-    fontSize: 32,
-    fontFamily: 'CourierPrime',
-    marginBottom: 40,
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 30,
     textAlign: 'center',
-    color: '#000000',
   },
   formContainer: {
-    width: '100%',
-    maxWidth: 400,
-    padding: 20,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    gap: 15,
   },
   input: {
-    height: 50,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#CCCCCC',
     borderRadius: 8,
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    padding: 15,
     fontSize: 16,
-    fontFamily: 'CourierPrime',
-    backgroundColor: '#FFFFFF',
   },
   button: {
     backgroundColor: '#000000',
-    padding: 16,
+    padding: 15,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 12,
   },
   loginButton: {
     backgroundColor: '#333333',
   },
+  disabledButton: {
+    opacity: 0.7,
+  },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontFamily: 'CourierPrime',
+    fontWeight: 'bold',
   },
   error: {
     color: '#FF0000',
-    marginBottom: 16,
     textAlign: 'center',
+    marginBottom: 10,
   },
 }); 

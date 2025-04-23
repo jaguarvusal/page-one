@@ -5,6 +5,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { auth, db } from '@/firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, updateDoc } from '@firebase/firestore';
 import { FontAwesome } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 interface Snippet {
   id: string;
@@ -121,6 +122,14 @@ export default function SnippetsScreen() {
             try {
               await deleteDoc(doc(db, 'snippets', snippetId));
               await fetchSnippets();
+              
+              // Refresh stats
+              router.push({
+                pathname: '/writer/(tabs)/stats',
+                params: { refresh: Date.now() }
+              });
+              
+              Alert.alert('Success', 'Snippet deleted successfully');
             } catch (error) {
               Alert.alert('Error', 'Failed to delete snippet');
             }
@@ -177,6 +186,12 @@ export default function SnippetsScreen() {
 
       // Refresh snippets list
       await fetchSnippets();
+
+      // Refresh stats
+      router.push({
+        pathname: '/writer/(tabs)/stats',
+        params: { refresh: Date.now() }
+      });
 
       Alert.alert('Success', `Snippet ${editingSnippet ? 'updated' : 'created'} successfully`);
     } catch (error) {
@@ -387,9 +402,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'ios' ? 40 : 0,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingTop: 20,
   },
   emptyStateContainer: {
     flex: 1,

@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { auth, db } from '@/firebase';
 import { collection, query, where, getDocs } from '@firebase/firestore';
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 export default function WriterLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
@@ -40,6 +41,15 @@ export default function WriterLayout() {
         tabBarActiveTintColor: '#000000',
         tabBarInactiveTintColor: '#666666',
         headerShown: false,
+        headerStyle: {
+          backgroundColor: '#FFFFFF',
+        },
+        headerTitleStyle: {
+          fontFamily: 'CourierPrime',
+        },
+        headerTintColor: '#000000',
+        headerShadowVisible: false,
+        headerStatusBarHeight: Platform.OS === 'ios' ? 40 : 0,
       }}
     >
       <Tabs.Screen

@@ -14,7 +14,7 @@ SplashScreen.preventAutoHideAsync();
 
 function LoadingScreen() {
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
       <ActivityIndicator size="large" color="#000000" />
     </View>
   );
@@ -36,8 +36,10 @@ export default function RootLayout() {
       await enableNetwork(db);
       
       const userDoc = await getDoc(doc(db, 'users', user.uid));
+      
       if (userDoc.exists()) {
         const userType = userDoc.data()?.type;
+        
         if (userType === 'writer') {
           setInitialRoute('/writer/(tabs)/stats');
         } else {
@@ -48,17 +50,13 @@ export default function RootLayout() {
         setInitialRoute('/(tabs)');
       }
     } catch (error: any) {
-      console.error('Error checking user type:', error);
-      
       if (error.code === 'failed-precondition' || error.code === 'unavailable') {
         if (retryCount < 3) {
-          // Retry after a delay
           setTimeout(() => {
             setRetryCount(prev => prev + 1);
             checkUserType(user);
           }, 1000 * (retryCount + 1));
         } else {
-          // After 3 retries, show error and sign out
           Alert.alert(
             'Connection Error',
             'Unable to connect to the server. Please check your internet connection and try again.',
@@ -74,7 +72,6 @@ export default function RootLayout() {
           );
         }
       } else {
-        // For other errors, just sign out
         await signOut(auth);
         setInitialRoute('/(tabs)');
       }
@@ -90,7 +87,6 @@ export default function RootLayout() {
           setInitialRoute('/(tabs)');
         }
       } catch (error) {
-        console.error('Error in auth state change:', error);
         setInitialRoute('/(tabs)');
       } finally {
         setIsLoading(false);
@@ -102,10 +98,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded && !isLoading && initialRoute) {
-      const timer = setTimeout(() => {
-        router.navigate(initialRoute);
-      }, 0);
-      return () => clearTimeout(timer);
+      router.replace(initialRoute);
     }
   }, [loaded, isLoading, initialRoute]);
 
@@ -120,44 +113,41 @@ export default function RootLayout() {
   }
 
   return (
-    <>
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: '#FFFFFF',
-          },
-          headerTintColor: '#000000',
-          headerTitleStyle: {
-            fontFamily: 'CourierPrime',
-            fontWeight: 'bold',
-          },
-        }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen 
-          name="writer" 
-          options={{ 
-            title: 'Writer Dashboard',
-            headerBackVisible: false,
-            headerLeft: () => null,
-          }} 
-        />
-        <Stack.Screen 
-          name="producer" 
-          options={{ 
-            title: 'Producer Dashboard',
-            headerBackVisible: false,
-            headerLeft: () => null,
-          }} 
-        />
-        <Stack.Screen 
-          name="auth" 
-          options={{ 
-            title: 'Authentication',
-            headerShown: false,
-          }} 
-        />
-      </Stack>
-      <StatusBar style="dark" />
-    </>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: false,
+        gestureHandlerEnabled: false,
+        animationEnabled: false,
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false, gestureEnabled: false }} />
+      <Stack.Screen 
+        name="writer" 
+        options={{ 
+          title: 'Writer Dashboard',
+          headerBackVisible: false,
+          headerLeft: () => null,
+          gestureEnabled: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="producer" 
+        options={{ 
+          title: 'Producer Dashboard',
+          headerBackVisible: false,
+          headerLeft: () => null,
+          gestureEnabled: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="auth" 
+        options={{ 
+          title: 'Authentication',
+          headerShown: false,
+          gestureEnabled: false,
+        }} 
+      />
+    </Stack>
   );
 }

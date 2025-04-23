@@ -1,10 +1,11 @@
-import { StyleSheet, ScrollView } from 'react-native';
+import { StyleSheet, ScrollView, Platform } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { StatsCard } from '@/components/StatsCard';
 import { auth, db } from '@/firebase';
 import { collection, query, where, getDocs } from '@firebase/firestore';
 import { useEffect, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 
 interface Stats {
   totalSnippets: number;
@@ -18,10 +19,11 @@ export default function StatsScreen() {
     shortlistedSnippets: 0,
     activeGreenlights: 0,
   });
+  const { refresh } = useLocalSearchParams();
 
   useEffect(() => {
     fetchStats();
-  }, []);
+  }, [refresh]);
 
   const fetchStats = async () => {
     try {
@@ -92,6 +94,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'ios' ? 40 : 0,
   },
   header: {
     fontSize: 24,
