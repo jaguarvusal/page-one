@@ -17,7 +17,7 @@ export default function AuthScreen() {
   const [isLoginLoading, setIsLoginLoading] = useState(false);
 
   const handleAuth = async (isSignUp: boolean) => {
-    if (!email || !password) {
+    if (!email.trim() || !password.trim()) {
       setError('Please fill in all fields');
       return;
     }
@@ -32,36 +32,56 @@ export default function AuthScreen() {
     try {
       let userCredential;
       if (isSignUp) {
+        console.log("Signing up as:", type); // Debug logging
         userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        
-        // Create user document in Firestore
+
+        // Create user document in Firestore with explicit onboardingComplete: false
         const userRef = doc(db, 'users', userCredential.user.uid);
         await setDoc(userRef, {
           email: userCredential.user.email,
           type: type,
           createdAt: new Date().toISOString(),
+          onboardingComplete: false,
         });
+
+        console.log("User created, redirecting to onboarding"); // Debug logging
+
+        // Force immediate redirection before any other code can execute
+        if (type === 'writer') {
+          setIsSignUpLoading(false);
+          setTimeout(() => {
+            router.push('/writer/onboarding/Step1Welcome');
+          }, 100);
+          return;
+        } else if (type === 'producer') {
+          setIsSignUpLoading(false);
+          setTimeout(() => {
+            router.push('/producer/onboarding/Step1Welcome');
+          }, 100);
+          return;
+        }
       } else {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       }
 
       // Verify user document exists
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-      
       if (!userDoc.exists()) {
         await setDoc(doc(db, 'users', userCredential.user.uid), {
           email: userCredential.user.email,
           type: type,
           createdAt: new Date().toISOString(),
+          onboardingComplete: false,
         });
       }
 
       const userType = userDoc.data()?.type || type;
+      const onboardingComplete = userDoc.data()?.onboardingComplete || false;
 
       if (userType === 'writer') {
-        router.replace('/writer/(tabs)/stats');
+        router.replace(onboardingComplete ? '/writer/(tabs)/stats' : '/writer/onboarding/Step1Welcome');
       } else {
-        router.replace('/producer/(tabs)/explore');
+        router.replace(onboardingComplete ? '/producer/(tabs)/explore' : '/producer/onboarding/Step1Welcome');
       }
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
@@ -91,13 +111,6 @@ export default function AuthScreen() {
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ThemedView style={styles.innerContainer}>
-          <Pressable 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <FontAwesome name="arrow-left" size={24} color="#000000" />
-          </Pressable>
-          
           <ThemedText style={styles.title}>
             {type === 'writer' ? 'Writer' : 'Producer'}
           </ThemedText>
@@ -150,6 +163,13 @@ export default function AuthScreen() {
               )}
             </Pressable>
           </ThemedView>
+
+          <Pressable 
+            style={styles.backButton} // Moved back button to the bottom
+            onPress={() => router.back()}
+          >
+            <FontAwesome name="arrow-left" size={24} color="#000000" />
+          </Pressable>
         </ThemedView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -164,9 +184,7 @@ const styles = StyleSheet.create({
   innerContainer: {
     flex: 1,
     padding: 20,
-  },
-  backButton: {
-    marginBottom: 20,
+    justifyContent: 'center', // Center the form vertically
   },
   title: {
     fontSize: 24,
@@ -206,4 +224,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 10,
   },
-}); 
+  backButton: {
+    position: 'absolute', // Position the back button at the bottom
+    bottom: 30,
+    left: 20,
+  },
+});

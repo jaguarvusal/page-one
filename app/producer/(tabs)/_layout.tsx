@@ -9,12 +9,11 @@ export default function ProducerLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    if (!auth.currentUser) return; // Ensure the user is authenticated
 
     const messagesQuery = query(
       collection(db, 'messages'),
-      where('userId', '==', currentUser.uid),
+      where('userId', '==', auth.currentUser.uid),
       where('read', '==', false)
     );
 
@@ -22,7 +21,7 @@ export default function ProducerLayout() {
       setUnreadCount(snapshot.size);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribe(); // Properly unsubscribe from the snapshot listener
   }, []);
 
   return (
@@ -42,9 +41,6 @@ export default function ProducerLayout() {
           fontFamily: 'CourierPrime',
           fontWeight: 'bold',
         },
-        gestureEnabled: false,
-        gestureHandlerEnabled: false,
-        animationEnabled: false,
       }}>
       <Tabs.Screen
         name="explore"
@@ -53,9 +49,6 @@ export default function ProducerLayout() {
           tabBarIcon: ({ color }) => (
             <FontAwesome name="search" size={24} color={color} />
           ),
-          gestureEnabled: false,
-          gestureHandlerEnabled: false,
-          animationEnabled: false,
         }}
       />
       <Tabs.Screen
@@ -65,9 +58,6 @@ export default function ProducerLayout() {
           tabBarIcon: ({ color }) => (
             <FontAwesome name="bookmark" size={24} color={color} />
           ),
-          gestureEnabled: false,
-          gestureHandlerEnabled: false,
-          animationEnabled: false,
         }}
       />
       <Tabs.Screen
@@ -78,9 +68,6 @@ export default function ProducerLayout() {
             <FontAwesome name="envelope" size={24} color={color} />
           ),
           tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-          gestureEnabled: false,
-          gestureHandlerEnabled: false,
-          animationEnabled: false,
         }}
       />
       <Tabs.Screen
@@ -90,11 +77,8 @@ export default function ProducerLayout() {
           tabBarIcon: ({ color }) => (
             <FontAwesome name="ellipsis-h" size={24} color={color} />
           ),
-          gestureEnabled: false,
-          gestureHandlerEnabled: false,
-          animationEnabled: false,
         }}
       />
     </Tabs>
   );
-} 
+}

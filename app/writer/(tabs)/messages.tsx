@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, Platform, SafeAreaView } from 'react-native';
+import { StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, SafeAreaView } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -26,6 +26,7 @@ export default function MessagesScreen() {
       const currentUser = auth.currentUser;
       if (!currentUser) {
         Alert.alert('Error', 'You must be logged in to view messages');
+        setLoading(false); // Ensure loading state is updated
         return;
       }
 
@@ -34,23 +35,26 @@ export default function MessagesScreen() {
         where('writerId', '==', currentUser.uid)
       );
       const threadsSnapshot = await getDocs(threadsQuery);
-      
+
       const threadsData = await Promise.all(
         threadsSnapshot.docs.map(async (threadDoc) => {
-          const threadData = threadDoc.data();
-          
+          const threadData = threadDoc.data() as {
+            producerId: string;
+            lastMessageAt: any;
+          }; // Explicitly type the thread data
+
           // Fetch producer's email
           let producerEmail = 'Unknown';
           try {
             const producerRef = doc(db, 'users', threadData.producerId);
             const producerDoc = await getDoc(producerRef);
             if (producerDoc.exists()) {
-              producerEmail = producerDoc.data().email;
+              producerEmail = producerDoc.data().email || 'Unknown';
             }
           } catch (error) {
             console.error('Error fetching producer email:', error);
           }
-          
+
           // Fetch last message
           let lastMessage = 'No messages yet';
           try {
@@ -63,7 +67,7 @@ export default function MessagesScreen() {
               // Sort messages in memory
               const messages = messagesSnapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
+                ...(doc.data() as { text: string; timestamp: any }), // Explicitly type message data
               }));
               messages.sort((a, b) => {
                 const timeA = a.timestamp?.toDate?.() || new Date(0);
@@ -75,30 +79,30 @@ export default function MessagesScreen() {
           } catch (error) {
             console.error('Error fetching last message:', error);
           }
-          
+
           return {
             id: threadDoc.id,
             producerId: threadData.producerId,
             lastMessageAt: threadData.lastMessageAt,
             producerEmail,
-            lastMessage
+            lastMessage,
           };
         })
       );
-      
+
       // Sort threads by lastMessageAt in descending order
       threadsData.sort((a, b) => {
         const dateA = a.lastMessageAt?.toDate?.() || new Date(0);
         const dateB = b.lastMessageAt?.toDate?.() || new Date(0);
         return dateB.getTime() - dateA.getTime();
       });
-      
+
       setThreads(threadsData);
     } catch (error) {
       console.error('Error fetching threads:', error);
       Alert.alert('Error', 'Failed to load messages. Please try again.');
     } finally {
-      setLoading(false);
+      setLoading(false); // Ensure loading state is updated
     }
   };
 
@@ -122,7 +126,7 @@ export default function MessagesScreen() {
             try {
               // Delete the message thread
               await deleteDoc(doc(db, 'messageThreads', threadId));
-              
+
               // Delete all messages in the thread
               const messagesQuery = query(
                 collection(db, 'messages'),
@@ -131,7 +135,7 @@ export default function MessagesScreen() {
               const messagesSnapshot = await getDocs(messagesQuery);
               const deletePromises = messagesSnapshot.docs.map(doc => deleteDoc(doc.ref));
               await Promise.all(deletePromises);
-              
+
               // Refresh the threads list
               fetchThreads();
             } catch (error) {
@@ -230,4 +234,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666666',
   },
-}); 
+});

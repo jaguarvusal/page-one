@@ -3,7 +3,7 @@ import { View, StyleSheet, FlatList, TextInput, Pressable, ActivityIndicator, Al
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { auth, db } from '@/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, deleteDoc, doc, getDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, deleteDoc, doc, getDoc } from 'firebase/firestore';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
 
@@ -15,16 +15,28 @@ interface Message {
 }
 
 export default function MessageThreadScreen() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string | string[] }>(); // Ensure `id` can be a string or string[]
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [producerEmail, setProducerEmail] = useState('');
 
+  const getValidThreadId = (): string | null => {
+    if (!id) return null;
+    return Array.isArray(id) ? id[0] : id; // Use the first element if `id` is an array
+  };
+
   useEffect(() => {
     const fetchThreadData = async () => {
       try {
-        const threadDoc = await getDoc(doc(db, 'messageThreads', id));
+        const threadId = getValidThreadId();
+        if (!threadId) {
+          Alert.alert('Error', 'Invalid thread ID');
+          router.back();
+          return;
+        }
+
+        const threadDoc = await getDoc(doc(db, 'messageThreads', threadId));
         if (!threadDoc.exists()) {
           Alert.alert('Error', 'Thread not found');
           router.back();
@@ -32,10 +44,10 @@ export default function MessageThreadScreen() {
         }
 
         const threadData = threadDoc.data();
-        if (threadData.producerId) {
+        if (threadData?.producerId) {
           const producerDoc = await getDoc(doc(db, 'users', threadData.producerId));
           if (producerDoc.exists()) {
-            setProducerEmail(producerDoc.data().email);
+            setProducerEmail(producerDoc.data()?.email || 'Unknown');
           }
         }
       } catch (error) {
@@ -47,10 +59,13 @@ export default function MessageThreadScreen() {
 
     fetchThreadData();
 
+    const threadId = getValidThreadId();
+    if (!threadId) return;
+
     const messagesRef = collection(db, 'messages');
     const messagesQuery = query(
       messagesRef,
-      where('threadId', '==', id)
+      where('threadId', '==', threadId)
     );
 
     const unsubscribe = onSnapshot(messagesQuery, 
@@ -59,7 +74,7 @@ export default function MessageThreadScreen() {
           id: doc.id,
           ...doc.data()
         })) as Message[];
-        
+
         // Filter out empty messages and sort by timestamp
         const filteredMessages = fetchedMessages.filter(msg => msg.text && msg.text.trim() !== '');
         filteredMessages.sort((a, b) => {
@@ -91,9 +106,12 @@ export default function MessageThreadScreen() {
         return;
       }
 
+      const threadId = getValidThreadId();
+      if (!threadId) return;
+
       const messagesRef = collection(db, 'messages');
       await addDoc(messagesRef, {
-        threadId: id,
+        threadId,
         text: newMessage.trim(),
         senderId: currentUser.uid,
         timestamp: serverTimestamp()
@@ -107,6 +125,9 @@ export default function MessageThreadScreen() {
   };
 
   const handleDeleteThread = async () => {
+    const threadId = getValidThreadId();
+    if (!threadId) return;
+
     Alert.alert(
       'Delete Chat',
       'Are you sure you want to delete this chat?',
@@ -121,12 +142,12 @@ export default function MessageThreadScreen() {
           onPress: async () => {
             try {
               // Delete the message thread
-              await deleteDoc(doc(db, 'messageThreads', id));
-              
+              await deleteDoc(doc(db, 'messageThreads', threadId));
+
               // Delete all messages in the thread
               const messagesQuery = query(
                 collection(db, 'messages'),
-                where('threadId', '==', id)
+                where('threadId', '==', threadId)
               );
               const messagesSnapshot = await getDocs(messagesQuery);
               const deletePromises = messagesSnapshot.docs.map(doc => deleteDoc(doc.ref));
@@ -161,8 +182,6 @@ export default function MessageThreadScreen() {
         options={{
           headerShown: false,
           gestureEnabled: false,
-          gestureHandlerEnabled: false,
-          animationEnabled: false,
         }}
       />
       <View style={styles.headerContainer}>
@@ -306,4 +325,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   }
-}); 
+});

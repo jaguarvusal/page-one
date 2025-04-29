@@ -15,7 +15,7 @@ interface Message {
 }
 
 export default function MessageThreadScreen() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>(); // Ensure `id` is typed correctly
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -24,22 +24,35 @@ export default function MessageThreadScreen() {
   useEffect(() => {
     const fetchThreadData = async () => {
       try {
+        if (!id) {
+          Alert.alert('Error', 'Invalid thread ID');
+          router.back();
+          return;
+        }
+
         const threadDoc = await getDoc(doc(db, 'messageThreads', id));
         if (threadDoc.exists()) {
           const threadData = threadDoc.data();
           if (threadData.snippetId) {
             const snippetDoc = await getDoc(doc(db, 'snippets', threadData.snippetId));
             if (snippetDoc.exists()) {
-              setSnippetTitle(snippetDoc.data().title);
+              setSnippetTitle(snippetDoc.data().title || 'Untitled');
             }
           }
+        } else {
+          Alert.alert('Error', 'Thread not found');
+          router.back();
         }
       } catch (error) {
         console.error('Error fetching thread data:', error);
+        Alert.alert('Error', 'Failed to load thread data');
+        router.back();
       }
     };
 
     fetchThreadData();
+
+    if (!id) return; // Ensure `id` is valid before querying messages
 
     const messagesRef = collection(db, 'messages');
     const messagesQuery = query(
@@ -52,7 +65,7 @@ export default function MessageThreadScreen() {
         id: doc.id,
         ...doc.data()
       })) as Message[];
-      
+
       // Filter out empty messages and sort by timestamp
       const filteredMessages = fetchedMessages.filter(msg => msg.text && msg.text.trim() !== '');
       filteredMessages.sort((a, b) => {
@@ -65,12 +78,11 @@ export default function MessageThreadScreen() {
       setIsLoading(false);
     }, (error) => {
       console.error('Error setting up messages:', error);
+      Alert.alert('Error', 'Failed to load messages');
       setIsLoading(false);
     });
 
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [id]);
 
   const handleSendMessage = async () => {
@@ -78,7 +90,10 @@ export default function MessageThreadScreen() {
 
     try {
       const currentUser = auth.currentUser;
-      if (!currentUser) return;
+      if (!currentUser) {
+        Alert.alert('Error', 'You must be logged in to send messages');
+        return;
+      }
 
       const messagesRef = collection(db, 'messages');
       await addDoc(messagesRef, {
@@ -96,28 +111,46 @@ export default function MessageThreadScreen() {
   };
 
   const handleDeleteThread = async () => {
-    try {
-      // Delete the message thread
-      await deleteDoc(doc(db, 'messageThreads', id));
-      
-      // Delete all messages in the thread
-      const messagesQuery = query(
-        collection(db, 'messages'),
-        where('threadId', '==', id)
-      );
-      const messagesSnapshot = await getDocs(messagesQuery);
-      const deletePromises = messagesSnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
+    if (!id) return; // Ensure `id` is valid before attempting to delete
 
-      // Navigate back to messages tab and force a refresh
-      router.back();
-      router.push({
-        pathname: '/producer/(tabs)/messages',
-        params: { refresh: Date.now() }
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Failed to delete the chat. Please try again.');
-    }
+    Alert.alert(
+      'Delete Chat',
+      'Are you sure you want to delete this chat?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Delete the message thread
+              await deleteDoc(doc(db, 'messageThreads', id));
+
+              // Delete all messages in the thread
+              const messagesQuery = query(
+                collection(db, 'messages'),
+                where('threadId', '==', id)
+              );
+              const messagesSnapshot = await getDocs(messagesQuery);
+              const deletePromises = messagesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+              await Promise.all(deletePromises);
+
+              // Navigate back to messages tab and force a refresh
+              router.back();
+              router.push({
+                pathname: '/producer/(tabs)/messages',
+                params: { refresh: Date.now() }
+              });
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete the chat. Please try again.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   if (isLoading) {
@@ -133,9 +166,6 @@ export default function MessageThreadScreen() {
       <Stack.Screen
         options={{
           headerShown: false,
-          gestureEnabled: false,
-          gestureHandlerEnabled: false,
-          animationEnabled: false,
         }}
       />
       <View style={styles.headerContainer}>
@@ -278,4 +308,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-}); 
+});

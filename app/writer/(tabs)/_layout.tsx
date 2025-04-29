@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { auth, db } from '@/firebase';
 import { collection, query, where, getDocs } from '@firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 export default function WriterLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
@@ -101,7 +101,7 @@ export default function WriterLayout() {
   );
 }
 
-const styles = {
+const styles = StyleSheet.create({
   badge: {
     position: 'absolute',
     top: -8,
@@ -119,4 +119,4 @@ const styles = {
     fontSize: 12,
     fontWeight: 'bold',
   },
-}; 
+});
