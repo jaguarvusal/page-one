@@ -1,8 +1,9 @@
 import { useFonts } from 'expo-font';
-import { Stack, useSegments, router } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { View, ActivityIndicator, Alert } from 'react-native';
 import 'react-native-reanimated';
 import { auth, db } from '@/firebase';
@@ -24,11 +25,10 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     CourierPrime: require('../assets/fonts/CourierPrime-Regular.ttf'),
   });
-
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
   const [userType, setUserType] = useState<string | null>(null);
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
-  const segments = useSegments();
 
   const checkUserType = async (user: any) => {
     try {
@@ -69,14 +69,22 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (!isLoading && userType && onboardingComplete !== null) {
-      if (userType === 'producer' && !onboardingComplete && !segments.includes('producer/onboarding')) {
-        router.replace('/producer/onboarding/Step1Welcome'); // Redirect producer to onboarding
-      } else if (userType === 'writer' && !onboardingComplete && !segments.includes('writer/onboarding')) {
-        router.replace('/writer/onboarding/Step1Welcome'); // Redirect writer to onboarding
+    if (!isLoading && userType) {
+      if (userType === 'producer') {
+        if (!onboardingComplete) {
+          router.replace('/producer/onboarding/Step1Welcome');
+        } else {
+          router.replace('/producer/(tabs)/explore');
+        }
+      } else if (userType === 'writer') {
+        if (!onboardingComplete) {
+          router.replace('/writer/onboarding/Step1Welcome');
+        } else {
+          router.replace('/writer/(tabs)/stats');
+        }
       }
     }
-  }, [isLoading, userType, onboardingComplete, segments]);
+  }, [isLoading, userType, onboardingComplete]);
 
   useEffect(() => {
     if (loaded) {

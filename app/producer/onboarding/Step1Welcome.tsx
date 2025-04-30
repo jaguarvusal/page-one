@@ -3,17 +3,17 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 
 export default function Step1Welcome() {
+  const handleNext = () => {
+    router.push('/producer/onboarding/Step2RespectTheWork');
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.headline}>
-        Discover your next great script — from voices you've never heard.
-      </Text>
-      <Text style={styles.subtext}>
-        A simple opening message establishing the purpose.
-      </Text>
+      <Text style={styles.headline}>Your words come first.</Text>
+      <Text style={styles.subtext}>Page One is designed with writers at the center.</Text>
       <Pressable 
         style={styles.button} 
-        onPress={() => router.push('/producer/onboarding/Step2RespectTheWork')}
+        onPress={handleNext}
       >
         <Text style={styles.buttonText}>Next</Text>
       </Pressable>

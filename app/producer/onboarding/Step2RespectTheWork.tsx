@@ -5,10 +5,12 @@ import { router } from 'expo-router';
 export default function Step2RespectTheWork() {
   return (
     <View style={styles.container}>
-      <Text style={styles.headline}>
-        Every snippet is original and timestamped. These are protected works — please read with integrity.
-      </Text>
-      <Pressable style={styles.button} onPress={() => router.push('/producer/onboarding/Step3VerificationPrompt')}>
+      <Text style={styles.headline}>Respect The Work</Text>
+      <Text style={styles.subtext}>Writers trust us with their stories. We take that seriously.</Text>
+      <Pressable 
+        style={styles.button} 
+        onPress={() => router.push('/producer/onboarding/Step3VerificationPrompt')}
+      >
         <Text style={styles.buttonText}>Next</Text>
       </Pressable>
     </View>
@@ -29,6 +31,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 40,
     color: '#000000',
+  },
+  subtext: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 40,
+    color: '#333333',
   },
   button: {
     backgroundColor: '#000000',
